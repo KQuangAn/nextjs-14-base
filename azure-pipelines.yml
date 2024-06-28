@@ -1,0 +1,55 @@
+# Node.js with React
+# Build a Node.js project that uses React.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+  branches:
+    include:
+      - main # or your default branch
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  # Define your variables here
+  NODE_VERSION: '21.x' # Specify your node version
+  AZURE_WEBAPP_NAME: 'your-app-service-name' # Azure App Service name
+  AZURE_SUBSCRIPTION: 'your-azure-subscription' # Azure subscription name
+  PACKAGE_MANAGER: 'npm' # or 'yarn' if you're using Yarn
+
+steps:
+  - task: UseNode@2
+    inputs:
+      version: $(NODE_VERSION)
+
+  - script: |
+      $(PACKAGE_MANAGER) install
+      $(PACKAGE_MANAGER) run build
+    displayName: 'Install dependencies and build the app'
+
+  - script: |
+      $(PACKAGE_MANAGER) run test
+    displayName: 'Run tests'
+
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: 'out' # Next.js output folder
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+      replaceExistingArchive: true
+    displayName: 'Archive build output'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+      ArtifactName: 'drop'
+    displayName: 'Publish build artifacts'
+
+  - task: AzureWebApp@1
+    inputs:
+      azureSubscription: $(AZURE_SUBSCRIPTION)
+      appName: $(AZURE_WEBAPP_NAME)
+      package: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    displayName: 'Deploy to Azure Web App'
